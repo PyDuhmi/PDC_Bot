@@ -65,7 +65,7 @@
     <label>الدائرة</label>
     <select id="dept"></select>
     <div class="row">
-      <div><label>المنطقة</label><input id="region" readonly></div>
+      <div><label>المنطقة</label><select id="region"></select></div>
       <div><label>القسم</label><select id="section"></select></div>
     </div>
     <label>نوع البلاغ</label>
@@ -96,7 +96,10 @@
     <label>وصف البلاغ</label>
     <textarea id="desc" placeholder="مثال: انقطاع جهد منخفض في حي العزيزية"></textarea>
     <div class="err" id="e_desc"></div>
-    <p class="hint">📷 الصور والإحداثيات ترسلها في المحادثة بعد الإرسال، مثل ما هو الحين.</p>
+    <label>إحداثيات الموقع (رابط Google Maps)</label>
+    <input id="maps" dir="ltr" inputmode="url" placeholder="https://maps.app.goo.gl/...">
+    <div class="err" id="e_maps"></div>
+    <p class="hint">📍 من قوقل ماب: اضغط على الموقع ← مشاركة ← نسخ الرابط، والصقه هنا.<br>📷 الصور ترسلها في المحادثة بعد الإرسال.</p>
   </div>
 </section>
 
@@ -138,7 +141,7 @@ const CONTRACTORS = {"منصور المساعد":"المعماريون","الب�
 
 const $ = id => document.getElementById(id);
 const fill = (el, arr) => el.innerHTML = arr.map(v=>`<option>${v}</option>`).join("");
-fill($("dept"), Object.keys(DEPTS)); fill($("section"), SECTIONS); fill($("type"), TYPES);
+fill($("dept"), Object.keys(DEPTS)); fill($("region"), [...new Set(Object.values(DEPTS))]); fill($("section"), SECTIONS); fill($("type"), TYPES);
 fill($("contractor"), Object.keys(CONTRACTORS)); fill($("cms"), CMS);
 const syncRegion = () => $("region").value = DEPTS[$("dept").value];
 const syncCms = () => $("cms").value = CONTRACTORS[$("contractor").value];
@@ -165,17 +168,40 @@ function validate(){
   const task=$("task").value.trim(), sap=$("sap").value.trim(), desc=$("desc").value.trim();
   $("e_task").textContent = /^\d{8}$/.test(task) ? "" : (ok=false, "لازم 8 أرقام");
   $("e_sap").textContent  = (sap==="" || /^4\d{9}$/.test(sap)) ? "" : (ok=false, "10 أرقام تبدأ بـ 4");
-  $("e_desc").textContent = desc.length>=5 ? "" : (ok=false, "اكتب وصف البلاغ");
+  $("e_desc").textContent = desc.length>=2 ? "" : (ok=false, "اكتب وصف البلاغ");
+  const maps=$("maps").value.trim();
+  $("e_maps").textContent = !maps ? (ok=false, "الصق رابط الموقع من Google Maps")
+                          : isMapsLink(maps) ? "" : (ok=false, "الرابط لازم يكون من Google Maps");
   return ok;
 }
 
+/* يقبل روابط قوقل ماب فقط: maps.app.goo.gl / goo.gl/maps / google.com/maps / maps.google.com */
+function isMapsLink(v){
+  let u; try{ u=new URL(v); }catch(e){ return false; }
+  if(u.protocol!=="https:" && u.protocol!=="http:") return false;
+  const h=u.hostname.replace(/^www\./,"");
+  return h==="maps.app.goo.gl" || (h==="goo.gl" && u.pathname.startsWith("/maps"))
+      || h==="maps.google.com" || (/^google\.[a-z.]+$/.test(h) && u.pathname.startsWith("/maps"));
+}
+/* لو الرابط طويل نطلع منه الإحداثيات مباشرة، والرابط المختصر يفكّه البوت */
+function coordsFromLink(v){
+  const m = v.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || v.match(/[?&](?:q|query|ll)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/) || v.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  return m ? m[1]+","+m[2] : "";
+}
 function submit(){
-  if(!validate()){ tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("error"); return; }
+  if(!validate()){
+    tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("error");
+    const bad=[...document.querySelectorAll(".err")].find(e=>e.textContent);
+    if(bad) bad.scrollIntoView({behavior:"smooth",block:"center"});
+    const msg="فيه خانة تحتاج تعديل: "+(bad?bad.textContent:"");
+    if(inTG && tg.showAlert) tg.showAlert(msg); return;
+  }
   const data = {
     action:"new_emergency",
     dept:$("dept").value, region:$("region").value, section:$("section").value, type:$("type").value,
     task:$("task").value.trim(), sap:$("sap").value.trim(), feeder:$("feeder").value.trim(),
     contractor:$("contractor").value, cms:$("cms").value,
+    maps:$("maps").value.trim(), coords:coordsFromLink($("maps").value.trim()),
     sched:segVal("sched"), nature:segVal("nature"), desc:$("desc").value.trim()
   };
   if (inTG) tg.sendData(JSON.stringify(data));     // يقفل الصفحة ويرسل للبوت
