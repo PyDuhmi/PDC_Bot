@@ -45,7 +45,14 @@
   .list .item:last-child{border:0}
   .pill{font-size:12px;padding:3px 8px;border-radius:20px;color:#fff;background:var(--hint)}
   .hint{color:var(--hint);font-size:12px}
-  .cons{padding:10px;border-radius:9px;background:var(--sec-bg);min-height:42px}
+  .tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .tbl td{padding:7px 0;border-bottom:1px solid rgba(128,128,128,.15)}
+  .tbl td.n{text-align:left;white-space:nowrap;color:var(--hint)}
+  .tbl b{color:var(--text)}
+  .mini{height:5px;border-radius:4px;background:var(--sec-bg);overflow:hidden;margin-top:4px}
+  .mini i{display:block;height:100%;background:var(--warn)}
+  h3{font-size:14px;margin:0 0 6px}
+  .stat small{color:var(--hint);font-size:11px}
   #fallbackBtn{display:none;position:fixed;bottom:0;left:0;right:0;margin:12px 16px;padding:13px;border:0;border-radius:12px;background:var(--btn);color:var(--btn-text);font-size:16px;font-weight:700}
 </style>
 </head>
@@ -88,8 +95,8 @@
   <div class="card">
     <label>المقاول</label>
     <select id="cont"></select>
-    <label>الاستشاري</label>
-    <div class="cons" id="cons">—</div>
+    <label>الاستشاري (يتعبّى من المقاول وتقدر تغيّره)</label>
+    <select id="cons"></select><div class="err" id="e_cons"></div>
     <label>جوال مشرف المقاول (10 أرقام)</label>
     <input id="phone" inputmode="tel" maxlength="10" dir="ltr" placeholder="05xxxxxxxx"><div class="err" id="e_phone"></div>
   </div>
@@ -110,16 +117,18 @@
 </section>
 
 <section id="stats">
+  <p class="hint" id="s_who" style="margin:0 0 8px"></p>
   <div class="stats">
-    <div class="stat"><span>إجمالي المهام</span><b id="s_total">0</b></div>
+    <div class="stat"><span>بلاغاتي</span><b id="s_total">0</b><small id="s_month"></small></div>
     <div class="stat"><span>منجز</span><b id="s_done" style="color:var(--ok)">0</b><div class="bar"><i id="s_bar"></i></div></div>
     <div class="stat"><span>جاري التنفيذ</span><b id="s_prog" style="color:var(--warn)">0</b></div>
     <div class="stat"><span>لم يتم البدء</span><b id="s_ns" style="color:var(--bad)">0</b></div>
+    <div class="stat"><span>متوسط مدة الإنجاز</span><b id="s_avg">—</b></div>
+    <div class="stat"><span>مفتوحة وما أكد الاستشاري استلامها</span><b id="s_unconf" style="color:var(--bad)">0</b></div>
   </div>
-  <div class="card list" style="margin-top:10px">
-    <div class="hint" style="margin-bottom:4px">آخر البلاغات</div>
-    <div id="recent"></div>
-  </div>
+  <div class="card" style="margin-top:10px"><h3>⏳ أقدم البلاغات المفتوحة</h3><div class="list" id="s_open"></div></div>
+  <div class="card"><h3>👷 على مين؟ الاستشاريين</h3><table class="tbl" id="s_cons"></table></div>
+  <div class="card"><h3>🏗️ على مين؟ المقاولين</h3><table class="tbl" id="s_cont"></table></div>
   <p class="hint" id="s_src"></p>
 </section>
 
@@ -150,8 +159,12 @@ if (DEMO) D = {   // بيانات معاينة فقط (لما تنفتح الص�
   sec:[[1,"قسم المحطات"],[2,"قسم الشبكات"],[3,"قسم العمليات"],[6,"قسم المولدات"],[7,"قسم المؤقتات"]],
   sch:[[1,"مجدول"],[2,"طارئ"]], nat:[[1,"أرضي"],[2,"هوائي"]],
   cont:[[1,"منصور المساعد","ابعاد الرؤية","المعماريون",null],[3,"دلتا","سمير أبو غلية","سعود كونسلت",null],[4,"الهاجدية","ابعاد الرؤية","المعماريون","الصخرة المشرفة"]],
+  cons:[[1,"PDC"],[2,"المعماريون"],[3,"سمير أبو غلية"],[4,"سعود كونسلت"],[5,"ابعاد الرؤية"],[6,"الصخرة المشرفة"]],
   rk:["شمال مكة","جنوب مكة","الليث"], op:"العقد التشغيلي", jed:0,
-  st:{total:8090,done:7738,prog:231,ns:121,recent:[[10003067,"منجز"],[10003066,"جاري التنفيذ"],[10003065,""]]}
+  st:{name:"مثال", total:212, done:190, prog:9, ns:5, cancel:8, month:14, unconf:3, avg:2.4,
+      cons:[["المعماريون",6,80],["ابعاد الرؤية",4,61],["سعود كونسلت",3,40],["الصخرة المشرفة",1,23]],
+      cont:[["منصور المساعد",5,70],["دلتا",4,52],["الهاجدية",3,45],["النهدي",2,37]],
+      open:[[8350,"79120011","دلتا","المعماريون","لم يتم البدء",12],[8371,"4001234567","منصور المساعد","ابعاد الرؤية","جاري التنفيذ",6],[8380,"79120044","الهاجدية","سعود كونسلت","جاري التنفيذ",2]]}
 };
 
 /* ===== تعبئة القوائم ===== */
@@ -161,7 +174,7 @@ function seg(id, arr, sel){
   el.innerHTML = arr.map(([v,t])=>`<button type="button" data-v="${v}">${t}</button>`).join("");
   const bs = [...el.querySelectorAll("button")];
   const pick = b => { bs.forEach(x=>x.classList.toggle("on", x===b)); el.dataset.v = b.dataset.v; };
-  bs.forEach(b => b.onclick = () => { pick(b); onChange(); tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged(); });
+  bs.forEach(b => b.onclick = () => { pick(b); onChange(id); tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged(); });
   pick(bs.find(b=>String(b.dataset.v)===String(sel)) || bs.find(b=>b.textContent==="طارئ") || bs[0]);
 }
 const ctrName = () => (D.ctr.find(c=>String(c[0])===$("ctr").dataset.v)||[])[1];
@@ -177,14 +190,15 @@ function fillCircles(sel){
   const r = $("region").value;
   opts($("cir"), D.cir.filter(c=>c[2]===r).map(c=>[c[0],c[1]]), sel);
 }
-/* نفس منطق main.py (خطوة 4118): التشغيلي أو جدة = بدون استشاري، والموحد حسب المنطقة */
-function consFor(c){
+opts($("cons"), [["","— اختر الاستشاري —"]].concat(D.cons||[]));
+/* الاستشاري المربوط بالمقاول (نفس جدول emergency_control) كاقتراح، والمستخدم يقدر يغيّره */
+function suggestedCons(){
+  const c = D.cont.find(x=>String(x[0])===$("cont").value);
+  if (!c || ctrName() === D.op || D.jed) return "";
   const region = $("region").value;
-  if (ctrName() === D.op || D.jed) return "بدون استشاري";
-  if (region === D.rk[0]) return c[3];
-  if (region === D.rk[1]) return c[2];
-  if (region === D.rk[2]) return c[4];
-  return "";
+  const name = region === D.rk[0] ? c[3] : region === D.rk[1] ? c[2] : region === D.rk[2] ? c[4] : "";
+  const hit = (D.cons||[]).find(x=>x[1]===name);
+  return hit ? String(hit[0]) : "";
 }
 function fillContractors(sel){
   const cur = sel != null ? sel : $("cont").value;
@@ -192,14 +206,11 @@ function fillContractors(sel){
   if (!$("cont").value && D.cont.length) $("cont").value = D.cont[0][0];
   syncCons();
 }
-function syncCons(){
-  const c = D.cont.find(x=>String(x[0])===$("cont").value);
-  $("cons").textContent = (c && consFor(c)) || "—";
-}
-function onChange(){ syncCons(); }
+function syncCons(){ $("cons").value = suggestedCons(); }
+function onChange(id){ if (id === "ctr") syncCons(); }
 $("region").onchange = () => { fillCircles(); syncCons(); };
 $("cont").onchange = syncCons;
-fillCircles(P.cir); fillContractors(P.cont);
+fillCircles(P.cir); fillContractors(P.cont); if (P.cons) $("cons").value = P.cons;
 ["task","sap","notif","feeder","sub","phone","desc","maps"].forEach(k => { if (P[k]) $(k).value = P[k]; });
 
 if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) $("hello").textContent = "مرحبًا " + tg.initDataUnsafe.user.first_name + (D.city ? " — " + D.city : "");
@@ -228,6 +239,7 @@ function validate(){
   set("sap",   v("sap")   && !/^4\d{9}$/.test(v("sap"))  ? "10 أرقام تبدأ بـ 4" : "");
   set("notif", v("notif") && !/^\d{9}$/.test(v("notif")) ? "9 أرقام" : "");
   if (!v("task") && !v("sap") && !v("notif")) set("task", "اكتب رقم المهمة أو الساب أو الإشعار");
+  set("cons",  $("cons").value ? "" : "اختر الاستشاري");
   set("phone", /^\d{10}$/.test(v("phone")) ? "" : "رقم جوال من 10 أرقام");
   set("desc",  v("desc").length >= 2 ? "" : "اكتب وصف البلاغ");
   set("maps",  !v("maps") ? "الصق رابط الموقع من Google Maps" : isMapsLink(v("maps")) ? "" : "الرابط لازم يكون من Google Maps");
@@ -247,7 +259,7 @@ function submit(){
     action:"new_emergency", v:2,
     ctr:+$("ctr").dataset.v, region:v("region"), cir:+v("cir"), sec:+v("sec"),
     task:v("task"), sap:v("sap"), notif:v("notif"), feeder:v("feeder"), sub:v("sub"),
-    cont:+v("cont"), phone:v("phone"),
+    cont:+v("cont"), cons:+v("cons"), phone:v("phone"),
     sch:+$("sch").dataset.v, nat:+$("nat").dataset.v,
     desc:v("desc"), maps:v("maps")
   };
@@ -261,15 +273,23 @@ function setMain(show){
 if (inTG) tg.MainButton.onClick(submit); else $("fallbackBtn").onclick = submit;
 setMain(true);
 
-/* ===== الإحصائيات (من البوت) ===== */
-const S = D.st || {total:0,done:0,prog:0,ns:0,recent:[]};
+/* ===== الإحصائيات (بلاغات المنشئ نفسه) ===== */
+const S = D.st || {};
 const fmt = n => Number(n||0).toLocaleString("en-US");
+const esc = t => String(t==null?"":t).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const active = (S.total||0) - (S.cancel||0);
+$("s_who").textContent = S.name ? "إحصائيات بلاغات: " + S.name : "";
 $("s_total").textContent=fmt(S.total); $("s_done").textContent=fmt(S.done);
 $("s_prog").textContent=fmt(S.prog); $("s_ns").textContent=fmt(S.ns);
-$("s_bar").style.width = (S.total ? S.done/S.total*100 : 0).toFixed(1)+"%";
+$("s_month").textContent = "هذا الشهر: " + fmt(S.month) + (S.cancel ? " · ملغي: " + fmt(S.cancel) : "");
+$("s_bar").style.width = (active ? S.done/active*100 : 0).toFixed(1)+"%";
+$("s_avg").textContent = S.avg==null ? "—" : S.avg + " يوم";
+$("s_unconf").textContent = fmt(S.unconf);
+const color = s => s==="جاري التنفيذ" ? "var(--warn)" : "var(--bad)";
+$("s_open").innerHTML = (S.open||[]).length ? S.open.map(o=>`<div class="item"><div><b>#${esc(o[0])}</b> <span class="hint">${esc(o[1])}</span><br><span class="hint">${esc(o[2])} · ${esc(o[3])}</span></div><div style="text-align:left"><span class="pill" style="background:${color(o[4])}">${esc(o[4])}</span><br><span class="hint">${o[5]==null?"":o[5]+" يوم"}</span></div></div>`).join("") : '<p class="hint">ما عندك بلاغات مفتوحة 👌</p>';
+const table = rows => (rows||[]).map(r=>`<tr><td>${esc(r[0])}<div class="mini"><i style="width:${r[2]?(r[1]/r[2]*100).toFixed(0):0}%"></i></div></td><td class="n"><b>${fmt(r[1])}</b> مفتوح من ${fmt(r[2])}</td></tr>`).join("") || '<tr><td class="hint">لا يوجد</td></tr>';
+$("s_cons").innerHTML = table(S.cons); $("s_cont").innerHTML = table(S.cont);
 $("s_src").textContent = DEMO ? "أرقام توضيحية (الصفحة مفتوحة بدون البوت)" : "من سجل " + (D.city||"البوت") + " وقت فتح النموذج";
-const color = s => s==="منجز" ? "var(--ok)" : s==="جاري التنفيذ" ? "var(--warn)" : s==="لم يتم البدء" ? "var(--bad)" : "var(--hint)";
-$("recent").innerHTML = (S.recent||[]).map(r=>`<div class="item"><span>#${r[0]}</span><span class="pill" style="background:${color(r[1])}">${r[1]||"بدون حالة"}</span></div>`).join("");
 </script>
 </body>
 </html>
