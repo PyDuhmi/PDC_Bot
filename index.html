@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>بلاغ طوارئ PDC</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg: var(--tg-theme-bg-color, #ffffff);
+    --text: var(--tg-theme-text-color, #1b1b1b);
+    --hint: var(--tg-theme-hint-color, #8a8f98);
+    --btn: var(--tg-theme-button-color, #2a7bd4);
+    --btn-text: var(--tg-theme-button-text-color, #ffffff);
+    --sec-bg: var(--tg-theme-secondary-bg-color, #f1f3f6);
+    --ok:#2e9d5b; --warn:#e0912b; --bad:#d64545;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--sec-bg);color:var(--text);font-family:-apple-system,"Segoe UI",Tahoma,sans-serif;font-size:15px}
+  header{padding:14px 16px 6px}
+  header h1{margin:0;font-size:18px}
+  header p{margin:2px 0 0;color:var(--hint);font-size:13px}
+  .tabs{display:flex;gap:6px;padding:8px 16px}
+  .tab{flex:1;padding:9px;border:0;border-radius:10px;background:var(--bg);color:var(--text);font-weight:600;font-size:14px}
+  .tab.active{background:var(--btn);color:var(--btn-text)}
+  section{display:none;padding:4px 16px 90px}
+  section.show{display:block}
+  .card{background:var(--bg);border-radius:12px;padding:12px;margin-bottom:10px}
+  label{display:block;font-size:13px;color:var(--hint);margin:8px 0 4px}
+  label:first-child{margin-top:0}
+  select,input,textarea{width:100%;padding:10px;border:1px solid rgba(128,128,128,.25);border-radius:9px;background:var(--sec-bg);color:var(--text);font-size:15px;font-family:inherit}
+  textarea{min-height:70px;resize:vertical}
+  .row{display:flex;gap:8px}.row>div{flex:1}
+  .seg{display:flex;gap:6px}
+  .seg button{flex:1;padding:9px;border-radius:9px;border:1px solid rgba(128,128,128,.25);background:var(--sec-bg);color:var(--text);font-size:14px}
+  .seg button.on{background:var(--btn);color:var(--btn-text);border-color:transparent}
+  .err{color:var(--bad);font-size:12px;min-height:14px;margin-top:3px}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .stat{background:var(--bg);border-radius:12px;padding:12px}
+  .stat b{display:block;font-size:22px}
+  .stat span{color:var(--hint);font-size:12px}
+  .bar{height:8px;border-radius:5px;background:var(--sec-bg);overflow:hidden;margin-top:6px}
+  .bar i{display:block;height:100%;background:var(--ok)}
+  .list .item{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(128,128,128,.15)}
+  .list .item:last-child{border:0}
+  .pill{font-size:12px;padding:3px 8px;border-radius:20px;color:#fff}
+  .hint{color:var(--hint);font-size:12px}
+  #fallbackBtn{display:none;position:fixed;bottom:0;left:0;right:0;margin:12px 16px;padding:13px;border:0;border-radius:12px;background:var(--btn);color:var(--btn-text);font-size:16px;font-weight:700}
+</style>
+</head>
+<body>
+<header>
+  <h1>🚨 نظام الطوارئ والصيانة</h1>
+  <p id="hello">مرحبًا</p>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-t="new">بلاغ جديد</button>
+  <button class="tab" data-t="stats">الإحصائيات</button>
+</div>
+
+<!-- ===== نموذج البلاغ ===== -->
+<section id="new" class="show">
+  <div class="card">
+    <label>الدائرة</label>
+    <select id="dept"></select>
+    <div class="row">
+      <div><label>المنطقة</label><input id="region" readonly></div>
+      <div><label>القسم</label><select id="section"></select></div>
+    </div>
+    <label>نوع البلاغ</label>
+    <select id="type"></select>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div><label>رقم المهمة (8 أرقام)</label><input id="task" inputmode="numeric" maxlength="8" placeholder="12345678"><div class="err" id="e_task"></div></div>
+      <div><label>رقم الساب (يبدأ بـ 4)</label><input id="sap" inputmode="numeric" maxlength="10" placeholder="4xxxxxxxxx"><div class="err" id="e_sap"></div></div>
+    </div>
+    <label>رقم المحطة/المغذي</label>
+    <input id="feeder" placeholder="اختياري">
+  </div>
+
+  <div class="card">
+    <label>المقاول</label>
+    <select id="contractor"></select>
+    <label>الاستشاري (يتعبّى تلقائيًا من المقاول)</label>
+    <select id="cms"></select>
+  </div>
+
+  <div class="card">
+    <label>جدولة البلاغ</label>
+    <div class="seg" id="sched"><button class="on">طارئ</button><button>مجدول</button></div>
+    <label>طبيعة البلاغ</label>
+    <div class="seg" id="nature"><button class="on">أرضي</button><button>هوائي</button></div>
+    <label>وصف البلاغ</label>
+    <textarea id="desc" placeholder="مثال: انقطاع جهد منخفض في حي العزيزية"></textarea>
+    <div class="err" id="e_desc"></div>
+    <p class="hint">📷 الصور والإحداثيات ترسلها في المحادثة بعد الإرسال، مثل ما هو الحين.</p>
+  </div>
+</section>
+
+<!-- ===== الإحصائيات ===== -->
+<section id="stats">
+  <div class="stats">
+    <div class="stat"><span>إجمالي المهام</span><b id="s_total">0</b></div>
+    <div class="stat"><span>منجز</span><b id="s_done" style="color:var(--ok)">0</b>
+      <div class="bar"><i id="s_bar"></i></div></div>
+    <div class="stat"><span>جاري التنفيذ</span><b id="s_prog" style="color:var(--warn)">0</b></div>
+    <div class="stat"><span>لم يتم البدء</span><b id="s_ns" style="color:var(--bad)">0</b></div>
+  </div>
+  <div class="card list" style="margin-top:10px">
+    <div class="hint" style="margin-bottom:4px">آخر البلاغات</div>
+    <div id="recent"></div>
+  </div>
+  <p class="hint" id="s_src"></p>
+</section>
+
+<button id="fallbackBtn">إرسال البلاغ</button>
+
+<script>
+const tg = window.Telegram ? Telegram.WebApp : null;
+const inTG = !!(tg && tg.initData);
+if (tg){ tg.ready(); tg.expand(); }
+
+/* القوائم من emergency_control.xlsx (مكة) — في النسخة الحقيقية البوت يمررها أو تُقرأ من الملف */
+const DEPTS = {
+  "دائرة العمليات والصيانة - جنوب مكة":"جنوب مكة",
+  "دائرة العمليات والصيانة - شمال مكة":"شمال مكة",
+  "قسم العمليات والصيانة - الليث":"الليث",
+  "قسم العمليات والصيانة - خليص":"خليص"
+};
+const SECTIONS = ["قسم المحطات","قسم الشبكات","قسم العمليات","قسم عمليات وصيانة الليث","قسم عمليات وصيانة خليص","قسم المولدات","قسم المؤقتات","قسم العدادات"];
+const TYPES = ["طوارئ","طوارئ جهد منخفض","طوارئ جهد متوسط","صيانة","طوارئ محطة"];
+const CMS = ["PDC","المعماريون","سمير أبو غلية","سعود كونسلت","ابعاد الرؤية","الصخرة المشرفة"];
+/* مثال ربط المقاول بالاستشاري (في الملف كل مقاول له استشاري في نفس الصف) */
+const CONTRACTORS = {"منصور المساعد":"المعماريون","البنية التحتية":"سعود كونسلت","دلتا":"ابعاد الرؤية","الهاجدية":"الصخرة المشرفة","النهدي":"سمير أبو غلية","المضايفي":"المعماريون","كنان العربية":"سعود كونسلت","الصينية":"ابعاد الرؤية"};
+
+const $ = id => document.getElementById(id);
+const fill = (el, arr) => el.innerHTML = arr.map(v=>`<option>${v}</option>`).join("");
+fill($("dept"), Object.keys(DEPTS)); fill($("section"), SECTIONS); fill($("type"), TYPES);
+fill($("contractor"), Object.keys(CONTRACTORS)); fill($("cms"), CMS);
+const syncRegion = () => $("region").value = DEPTS[$("dept").value];
+const syncCms = () => $("cms").value = CONTRACTORS[$("contractor").value];
+$("dept").onchange = syncRegion; $("contractor").onchange = syncCms; syncRegion(); syncCms();
+
+document.querySelectorAll(".seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.onclick = () => {
+  seg.querySelectorAll("button").forEach(x=>x.classList.remove("on")); b.classList.add("on");
+  tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
+}));
+const segVal = id => $(id).querySelector(".on").textContent;
+
+if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) $("hello").textContent = "مرحبًا " + tg.initDataUnsafe.user.first_name;
+
+/* التبويبات */
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
+  document.querySelectorAll("section").forEach(s=>s.classList.toggle("show", s.id===t.dataset.t));
+  setMain(t.dataset.t === "new");
+});
+
+/* التحقق حسب قواعد السجل */
+function validate(){
+  let ok = true;
+  const task=$("task").value.trim(), sap=$("sap").value.trim(), desc=$("desc").value.trim();
+  $("e_task").textContent = /^\d{8}$/.test(task) ? "" : (ok=false, "لازم 8 أرقام");
+  $("e_sap").textContent  = (sap==="" || /^4\d{9}$/.test(sap)) ? "" : (ok=false, "10 أرقام تبدأ بـ 4");
+  $("e_desc").textContent = desc.length>=5 ? "" : (ok=false, "اكتب وصف البلاغ");
+  return ok;
+}
+
+function submit(){
+  if(!validate()){ tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("error"); return; }
+  const data = {
+    action:"new_emergency",
+    dept:$("dept").value, region:$("region").value, section:$("section").value, type:$("type").value,
+    task:$("task").value.trim(), sap:$("sap").value.trim(), feeder:$("feeder").value.trim(),
+    contractor:$("contractor").value, cms:$("cms").value,
+    sched:segVal("sched"), nature:segVal("nature"), desc:$("desc").value.trim()
+  };
+  if (inTG) tg.sendData(JSON.stringify(data));     // يقفل الصفحة ويرسل للبوت
+  else { console.log(data); alert("وضع المعاينة (برا تيليجرام):\n" + JSON.stringify(data,null,1)); }
+}
+
+/* زر تيليجرام الرئيسي أسفل الشاشة، أو زر بديل برا تيليجرام */
+function setMain(show){
+  if (inTG){
+    tg.MainButton.setParams({text:"إرسال البلاغ"});
+    show ? tg.MainButton.show() : tg.MainButton.hide();
+  } else $("fallbackBtn").style.display = show ? "block" : "none";
+}
+if (inTG) tg.MainButton.onClick(submit); else $("fallbackBtn").onclick = submit;
+setMain(true);
+
+/* الإحصائيات: البوت يمررها في الرابط ?total=..&done=..&prog=..&ns=..  (بدون سيرفر) */
+const q = new URLSearchParams(location.search);
+const S = {total:+q.get("total")||8090, done:+q.get("done")||7738, prog:+q.get("prog")||231, ns:+q.get("ns")||121};
+$("s_total").textContent=S.total.toLocaleString("en-US"); $("s_done").textContent=S.done.toLocaleString("en-US");
+$("s_prog").textContent=S.prog.toLocaleString("en-US"); $("s_ns").textContent=S.ns.toLocaleString("en-US");
+$("s_bar").style.width = (S.done/S.total*100).toFixed(1)+"%";
+$("s_src").textContent = q.get("total") ? "من البوت مباشرة" : "أرقام توضيحية (إجمالي ومنجز مكة 5 نوفمبر، الباقي مثال)";
+const recent = [["10003067","منجز","var(--ok)"],["10003066","جاري التنفيذ","var(--warn)"],["10003065","لم يتم البدء","var(--bad)"],["10003064","منجز","var(--ok)"]];
+$("recent").innerHTML = recent.map(r=>`<div class="item"><span>#${r[0]}</span><span class="pill" style="background:${r[2]}">${r[1]}</span></div>`).join("");
+</script>
+</body>
+</html>
