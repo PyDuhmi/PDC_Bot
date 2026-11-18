@@ -45,6 +45,7 @@
   .list .item:last-child{border:0}
   .pill{font-size:12px;padding:3px 8px;border-radius:20px;color:#fff;background:var(--hint)}
   .hint{color:var(--hint);font-size:12px}
+  .ro{padding:10px;border-radius:9px;background:var(--sec-bg);opacity:.85}
   .tbl{width:100%;border-collapse:collapse;font-size:13px}
   .tbl td{padding:7px 0;border-bottom:1px solid rgba(128,128,128,.15)}
   .tbl td.n{text-align:left;white-space:nowrap;color:var(--hint)}
@@ -63,14 +64,15 @@
 </header>
 
 <div class="tabs">
-  <button class="tab active" data-t="new">بلاغ جديد</button>
-  <button class="tab" data-t="stats">الإحصائيات</button>
+  <button class="tab active" data-t="new">مهمة / بلاغ جديد</button>
+  <button class="tab" data-t="stats">الإحصائيات والتقارير</button>
 </div>
 
 <section id="new" class="show">
   <div class="card">
     <label>نوع العقد</label>
-    <div class="seg" id="ctr"></div>
+    <div class="ro" id="ctrName"></div>
+    <div id="ctr" hidden></div>
     <div class="row">
       <div><label>المنطقة</label><select id="region"></select></div>
       <div><label>القسم</label><select id="sec"></select></div>
@@ -123,12 +125,27 @@
     <div class="stat"><span>منجز</span><b id="s_done" style="color:var(--ok)">0</b><div class="bar"><i id="s_bar"></i></div></div>
     <div class="stat"><span>جاري التنفيذ</span><b id="s_prog" style="color:var(--warn)">0</b></div>
     <div class="stat"><span>لم يتم البدء</span><b id="s_ns" style="color:var(--bad)">0</b></div>
-    <div class="stat"><span>متوسط مدة الإنجاز</span><b id="s_avg">—</b></div>
-    <div class="stat"><span>مفتوحة وما أكد الاستشاري استلامها</span><b id="s_unconf" style="color:var(--bad)">0</b></div>
   </div>
-  <div class="card" style="margin-top:10px"><h3>⏳ أقدم البلاغات المفتوحة</h3><div class="list" id="s_open"></div></div>
-  <div class="card"><h3>👷 على مين؟ الاستشاريين</h3><table class="tbl" id="s_cons"></table></div>
-  <div class="card"><h3>🏗️ على مين؟ المقاولين</h3><table class="tbl" id="s_cont"></table></div>
+  <div class="card" style="margin-top:10px">
+    <h3>📊 تقرير مخصص</h3>
+    <label>النطاق</label>
+    <div class="seg" id="r_scope"><button type="button" data-v="mine" class="on">بلاغاتي</button><button type="button" data-v="all">كل السجل</button></div>
+    <label>الفترة</label>
+    <div class="seg" id="r_period">
+      <button type="button" data-p="month">الشهر</button><button type="button" data-p="30">30 يوم</button><button type="button" data-p="year">السنة</button><button type="button" data-p="all" class="on">الكل</button>
+    </div>
+    <div class="row">
+      <div><label>من</label><input type="date" id="r_from"></div>
+      <div><label>إلى</label><input type="date" id="r_to"></div>
+    </div>
+    <label>الاستشاري</label>
+    <select id="r_cons"></select>
+    <label>المقاول</label>
+    <select id="r_cont"></select>
+    <label>بحث برقم المهمة أو الرقم المرجعي (اختياري)</label>
+    <input id="r_q" inputmode="numeric" placeholder="مثال: 79120011 أو 8384">
+    <p class="hint">التقرير يوصلك في المحادثة: منجز، جاري التنفيذ، لم يتم البدء، ملغي، لكل استشاري ولكل مقاول.</p>
+  </div>
   <p class="hint" id="s_src"></p>
 </section>
 
@@ -180,7 +197,9 @@ function seg(id, arr, sel){
 const ctrName = () => (D.ctr.find(c=>String(c[0])===$("ctr").dataset.v)||[])[1];
 const regions = [...new Set(D.cir.map(c=>c[2]))];
 
-seg("ctr", D.ctr, P.ctr);
+/* نوع العقد: العقد الموحد تلقائياً */
+const UNIFIED = D.ctr.find(c=>String(c[1]).trim()==="العقد الموحد") || D.ctr[0];
+$("ctr").dataset.v = String(UNIFIED[0]); $("ctrName").textContent = UNIFIED[1];
 opts($("region"), regions.map(r=>[r,r]), P.region);
 opts($("sec"), D.sec, P.sec);
 seg("sch", D.sch, P.sch);
@@ -220,7 +239,7 @@ else if (D.city) $("hello").textContent = D.city;
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
   document.querySelectorAll("section").forEach(s=>s.classList.toggle("show", s.id===t.dataset.t));
-  setMain(t.dataset.t === "new");
+  TAB = t.dataset.t; setMain(true);
 });
 
 /* ===== التحقق (نفس قواعد البوت) ===== */
@@ -266,30 +285,55 @@ function submit(){
   if (inTG) tg.sendData(JSON.stringify(data));     // يقفل الصفحة ويرسل للبوت
   else { console.log(data); alert("وضع المعاينة (برا تيليجرام):\n" + JSON.stringify(data,null,1)); }
 }
+let TAB = "new";
 function setMain(show){
-  if (inTG){ tg.MainButton.setParams({text:"إرسال البلاغ"}); show ? tg.MainButton.show() : tg.MainButton.hide(); }
-  else $("fallbackBtn").style.display = show ? "block" : "none";
+  const text = TAB === "new" ? "إرسال البلاغ" : "إصدار التقرير";
+  if (inTG){ tg.MainButton.setParams({text}); show ? tg.MainButton.show() : tg.MainButton.hide(); }
+  else { $("fallbackBtn").textContent = text; $("fallbackBtn").style.display = show ? "block" : "none"; }
 }
-if (inTG) tg.MainButton.onClick(submit); else $("fallbackBtn").onclick = submit;
+const mainClick = () => TAB === "new" ? submit() : report();
+if (inTG) tg.MainButton.onClick(mainClick); else $("fallbackBtn").onclick = mainClick;
 setMain(true);
 
 /* ===== الإحصائيات (بلاغات المنشئ نفسه) ===== */
 const S = D.st || {};
 const fmt = n => Number(n||0).toLocaleString("en-US");
-const esc = t => String(t==null?"":t).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const active = (S.total||0) - (S.cancel||0);
-$("s_who").textContent = S.name ? "إحصائيات بلاغات: " + S.name : "";
+$("s_who").textContent = S.name ? "ملخص بلاغات: " + S.name : "";
 $("s_total").textContent=fmt(S.total); $("s_done").textContent=fmt(S.done);
 $("s_prog").textContent=fmt(S.prog); $("s_ns").textContent=fmt(S.ns);
 $("s_month").textContent = "هذا الشهر: " + fmt(S.month) + (S.cancel ? " · ملغي: " + fmt(S.cancel) : "");
 $("s_bar").style.width = (active ? S.done/active*100 : 0).toFixed(1)+"%";
-$("s_avg").textContent = S.avg==null ? "—" : S.avg + " يوم";
-$("s_unconf").textContent = fmt(S.unconf);
-const color = s => s==="جاري التنفيذ" ? "var(--warn)" : "var(--bad)";
-$("s_open").innerHTML = (S.open||[]).length ? S.open.map(o=>`<div class="item"><div><b>#${esc(o[0])}</b> <span class="hint">${esc(o[1])}</span><br><span class="hint">${esc(o[2])} · ${esc(o[3])}</span></div><div style="text-align:left"><span class="pill" style="background:${color(o[4])}">${esc(o[4])}</span><br><span class="hint">${o[5]==null?"":o[5]+" يوم"}</span></div></div>`).join("") : '<p class="hint">ما عندك بلاغات مفتوحة 👌</p>';
-const table = rows => (rows||[]).map(r=>`<tr><td>${esc(r[0])}<div class="mini"><i style="width:${r[2]?(r[1]/r[2]*100).toFixed(0):0}%"></i></div></td><td class="n"><b>${fmt(r[1])}</b> مفتوح من ${fmt(r[2])}</td></tr>`).join("") || '<tr><td class="hint">لا يوجد</td></tr>';
-$("s_cons").innerHTML = table(S.cons); $("s_cont").innerHTML = table(S.cont);
 $("s_src").textContent = DEMO ? "أرقام توضيحية (الصفحة مفتوحة بدون البوت)" : "من سجل " + (D.city||"البوت") + " وقت فتح النموذج";
+
+/* ===== التقرير المخصص ===== */
+const all = [["","الكل"]];
+opts($("r_cons"), all.concat((D.cons||[]).map(c=>[c[1],c[1]])));
+opts($("r_cont"), all.concat(D.cont.map(c=>[c[1],c[1]])));
+function segSimple(id, attr, cb){
+  const bs=[...$(id).querySelectorAll("button")];
+  bs.forEach(b=>b.onclick=()=>{ bs.forEach(x=>x.classList.toggle("on",x===b)); cb && cb(b.dataset[attr]); });
+}
+const iso = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+function period(p){
+  const t=new Date(); let f="";
+  if (p==="month") f=iso(new Date(t.getFullYear(),t.getMonth(),1));
+  else if (p==="30") f=iso(new Date(t.getTime()-29*864e5));
+  else if (p==="year") f=iso(new Date(t.getFullYear(),0,1));
+  $("r_from").value=f; $("r_to").value = p==="all" ? "" : iso(t);
+}
+segSimple("r_scope","v"); segSimple("r_period","p",period);
+["r_from","r_to"].forEach(k=>$(k).oninput=()=>$("r_period").querySelectorAll("button").forEach(b=>b.classList.remove("on")));
+function report(){
+  if ($("r_from").value && $("r_to").value && $("r_from").value > $("r_to").value){
+    const m="تاريخ «من» بعد «إلى»"; inTG && tg.showAlert ? tg.showAlert(m) : alert(m); return;
+  }
+  const data = {action:"report", scope:$("r_scope").querySelector(".on").dataset.v,
+    from:$("r_from").value, to:$("r_to").value, cons:$("r_cons").value, cont:$("r_cont").value,
+    q:$("r_q").value.trim()};
+  if (inTG) tg.sendData(JSON.stringify(data));
+  else { console.log(data); alert("وضع المعاينة (برا تيليجرام):\n" + JSON.stringify(data,null,1)); }
+}
 </script>
 </body>
 </html>
