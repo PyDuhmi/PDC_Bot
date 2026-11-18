@@ -123,7 +123,8 @@
 
 <script>
 const tg = window.Telegram ? Telegram.WebApp : null;
-const inTG = !!(tg && tg.initData);
+// زر الكيبورد ما يرسل initData، فنتأكد من المنصة بدالها
+const inTG = !!(tg && tg.platform && tg.platform !== "unknown");
 if (tg){ tg.ready(); tg.expand(); }
 
 /* القوائم من emergency_control.xlsx (مكة) — في النسخة الحقيقية البوت يمررها أو تُقرأ من الملف */
