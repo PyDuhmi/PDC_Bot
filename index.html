@@ -89,8 +89,8 @@
     <label>رقم الإشعار (9)</label>
     <input id="notif" inputmode="numeric" maxlength="9"><div class="err" id="e_notif"></div>
     <div class="row">
-      <div><label>المحطة/المغذي</label><input id="feeder"></div>
-      <div><label>الاشتراك/المقطع</label><input id="sub"></div>
+      <div><label>المحطة/المغذي</label><input id="feeder" placeholder="أو -"><div class="err" id="e_feeder"></div></div>
+      <div><label>الاشتراك/المقطع</label><input id="sub" placeholder="أو -"><div class="err" id="e_sub"></div></div>
     </div>
   </div>
 
@@ -258,6 +258,8 @@ function validate(){
   set("sap",   v("sap")   && !/^4\d{9}$/.test(v("sap"))  ? "10 أرقام تبدأ بـ 4" : "");
   set("notif", v("notif") && !/^\d{9}$/.test(v("notif")) ? "9 أرقام" : "");
   if (!v("task") && !v("sap") && !v("notif")) set("task", "اكتب رقم المهمة أو الساب أو الإشعار");
+  set("feeder", v("feeder") ? "" : "إجباري (اكتب - إذا ما فيه)");
+  set("sub",    v("sub") ? "" : "إجباري (اكتب - إذا ما فيه)");
   set("cons",  $("cons").value ? "" : "اختر الاستشاري");
   set("phone", /^\d{10}$/.test(v("phone")) ? "" : "رقم جوال من 10 أرقام");
   set("desc",  v("desc").length >= 2 ? "" : "اكتب وصف البلاغ");
