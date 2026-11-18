@@ -30,7 +30,7 @@
   label:first-child{margin-top:0}
   select,input,textarea{width:100%;padding:10px;border:1px solid rgba(128,128,128,.25);border-radius:9px;background:var(--sec-bg);color:var(--text);font-size:15px;font-family:inherit}
   textarea{min-height:70px;resize:vertical}
-  .row{display:flex;gap:8px}.row>div{flex:1}
+  .row{display:flex;gap:8px}.row>div{flex:1;min-width:0}
   .seg{display:flex;gap:6px}
   .seg button{flex:1;padding:9px;border-radius:9px;border:1px solid rgba(128,128,128,.25);background:var(--sec-bg);color:var(--text);font-size:14px}
   .seg button.on{background:var(--btn);color:var(--btn-text);border-color:transparent}
@@ -43,8 +43,9 @@
   .bar i{display:block;height:100%;background:var(--ok)}
   .list .item{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(128,128,128,.15)}
   .list .item:last-child{border:0}
-  .pill{font-size:12px;padding:3px 8px;border-radius:20px;color:#fff}
+  .pill{font-size:12px;padding:3px 8px;border-radius:20px;color:#fff;background:var(--hint)}
   .hint{color:var(--hint);font-size:12px}
+  .cons{padding:10px;border-radius:9px;background:var(--sec-bg);min-height:42px}
   #fallbackBtn{display:none;position:fixed;bottom:0;left:0;right:0;margin:12px 16px;padding:13px;border:0;border-radius:12px;background:var(--btn);color:var(--btn-text);font-size:16px;font-weight:700}
 </style>
 </head>
@@ -59,42 +60,47 @@
   <button class="tab" data-t="stats">الإحصائيات</button>
 </div>
 
-<!-- ===== نموذج البلاغ ===== -->
 <section id="new" class="show">
   <div class="card">
-    <label>الدائرة</label>
-    <select id="dept"></select>
+    <label>نوع العقد</label>
+    <div class="seg" id="ctr"></div>
     <div class="row">
       <div><label>المنطقة</label><select id="region"></select></div>
-      <div><label>القسم</label><select id="section"></select></div>
+      <div><label>القسم</label><select id="sec"></select></div>
     </div>
-    <label>نوع البلاغ</label>
-    <select id="type"></select>
+    <label>الدائرة</label>
+    <select id="cir"></select>
   </div>
 
   <div class="card">
     <div class="row">
-      <div><label>رقم المهمة (8 أرقام)</label><input id="task" inputmode="numeric" maxlength="8" placeholder="12345678"><div class="err" id="e_task"></div></div>
-      <div><label>رقم الساب (يبدأ بـ 4)</label><input id="sap" inputmode="numeric" maxlength="10" placeholder="4xxxxxxxxx"><div class="err" id="e_sap"></div></div>
+      <div><label>رقم المهمة (8)</label><input id="task" inputmode="numeric" maxlength="8"><div class="err" id="e_task"></div></div>
+      <div><label>رقم الساب (10)</label><input id="sap" inputmode="numeric" maxlength="10" placeholder="4xxxxxxxxx"><div class="err" id="e_sap"></div></div>
     </div>
-    <label>رقم المحطة/المغذي</label>
-    <input id="feeder" placeholder="اختياري">
+    <label>رقم الإشعار (9)</label>
+    <input id="notif" inputmode="numeric" maxlength="9"><div class="err" id="e_notif"></div>
+    <div class="row">
+      <div><label>المحطة/المغذي</label><input id="feeder"></div>
+      <div><label>الاشتراك/المقطع</label><input id="sub"></div>
+    </div>
   </div>
 
   <div class="card">
     <label>المقاول</label>
-    <select id="contractor"></select>
-    <label>الاستشاري (يتعبّى تلقائيًا من المقاول)</label>
-    <select id="cms"></select>
+    <select id="cont"></select>
+    <label>الاستشاري</label>
+    <div class="cons" id="cons">—</div>
+    <label>جوال مشرف المقاول (10 أرقام)</label>
+    <input id="phone" inputmode="tel" maxlength="10" dir="ltr" placeholder="05xxxxxxxx"><div class="err" id="e_phone"></div>
   </div>
 
   <div class="card">
     <label>جدولة البلاغ</label>
-    <div class="seg" id="sched"><button class="on">طارئ</button><button>مجدول</button></div>
+    <div class="seg" id="sch"></div>
     <label>طبيعة البلاغ</label>
-    <div class="seg" id="nature"><button class="on">أرضي</button><button>هوائي</button></div>
+    <div class="seg" id="nat"></div>
     <label>وصف البلاغ</label>
-    <textarea id="desc" placeholder="مثال: انقطاع جهد منخفض في حي العزيزية"></textarea>
+    <textarea id="desc" maxlength="1000"></textarea>
     <div class="err" id="e_desc"></div>
     <label>إحداثيات الموقع (رابط Google Maps)</label>
     <input id="maps" dir="ltr" inputmode="url" placeholder="https://maps.app.goo.gl/...">
@@ -103,12 +109,10 @@
   </div>
 </section>
 
-<!-- ===== الإحصائيات ===== -->
 <section id="stats">
   <div class="stats">
     <div class="stat"><span>إجمالي المهام</span><b id="s_total">0</b></div>
-    <div class="stat"><span>منجز</span><b id="s_done" style="color:var(--ok)">0</b>
-      <div class="bar"><i id="s_bar"></i></div></div>
+    <div class="stat"><span>منجز</span><b id="s_done" style="color:var(--ok)">0</b><div class="bar"><i id="s_bar"></i></div></div>
     <div class="stat"><span>جاري التنفيذ</span><b id="s_prog" style="color:var(--warn)">0</b></div>
     <div class="stat"><span>لم يتم البدء</span><b id="s_ns" style="color:var(--bad)">0</b></div>
   </div>
@@ -126,57 +130,89 @@ const tg = window.Telegram ? Telegram.WebApp : null;
 // زر الكيبورد ما يرسل initData، فنتأكد من المنصة بدالها
 const inTG = !!(tg && tg.platform && tg.platform !== "unknown");
 if (tg){ tg.ready(); tg.expand(); }
-
-/* القوائم من emergency_control.xlsx (مكة) — في النسخة الحقيقية البوت يمررها أو تُقرأ من الملف */
-const DEPTS = {
-  "دائرة العمليات والصيانة - جنوب مكة":"جنوب مكة",
-  "دائرة العمليات والصيانة - شمال مكة":"شمال مكة",
-  "قسم العمليات والصيانة - الليث":"الليث",
-  "قسم العمليات والصيانة - خليص":"خليص"
-};
-const SECTIONS = ["قسم المحطات","قسم الشبكات","قسم العمليات","قسم عمليات وصيانة الليث","قسم عمليات وصيانة خليص","قسم المولدات","قسم المؤقتات","قسم العدادات"];
-const TYPES = ["طوارئ","طوارئ جهد منخفض","طوارئ جهد متوسط","صيانة","طوارئ محطة"];
-const CMS = ["PDC","المعماريون","سمير أبو غلية","سعود كونسلت","ابعاد الرؤية","الصخرة المشرفة"];
-/* مثال ربط المقاول بالاستشاري (في الملف كل مقاول له استشاري في نفس الصف) */
-const CONTRACTORS = {"منصور المساعد":"المعماريون","البنية التحتية":"سعود كونسلت","دلتا":"ابعاد الرؤية","الهاجدية":"الصخرة المشرفة","النهدي":"سمير أبو غلية","المضايفي":"المعماريون","كنان العربية":"سعود كونسلت","الصينية":"ابعاد الرؤية"};
-
 const $ = id => document.getElementById(id);
-const fill = (el, arr) => el.innerHTML = arr.map(v=>`<option>${v}</option>`).join("");
-fill($("dept"), Object.keys(DEPTS)); fill($("region"), [...new Set(Object.values(DEPTS))]); fill($("section"), SECTIONS); fill($("type"), TYPES);
-fill($("contractor"), Object.keys(CONTRACTORS)); fill($("cms"), CMS);
-const syncRegion = () => $("region").value = DEPTS[$("dept").value];
-const syncCms = () => $("cms").value = CONTRACTORS[$("contractor").value];
-$("dept").onchange = syncRegion; $("contractor").onchange = syncCms; syncRegion(); syncCms();
 
-document.querySelectorAll(".seg").forEach(seg => seg.querySelectorAll("button").forEach(b => b.onclick = () => {
-  seg.querySelectorAll("button").forEach(x=>x.classList.remove("on")); b.classList.add("on");
-  tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
-}));
-const segVal = id => $(id).querySelector(".on").textContent;
+/* ===== البيانات: البوت يرسلها في الرابط ?d=  (من emergency_control حسب مدينة البوت) ===== */
+function b64json(s){
+  s = s.replace(/-/g,"+").replace(/_/g,"/"); while (s.length % 4) s += "=";
+  const bin = atob(s), bytes = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+const q = new URLSearchParams(location.search);
+let D = null, P = {};
+try { if (q.get("d")) D = b64json(q.get("d")); } catch(e){ console.log(e); }
+try { if (q.get("p")) P = b64json(q.get("p")); } catch(e){}
+const DEMO = !D;
+if (DEMO) D = {   // بيانات معاينة فقط (لما تنفتح الصفحة بدون البوت)
+  city:"معاينة", ctr:[[1,"العقد الموحد"],[2,"العقد التشغيلي"]],
+  cir:[[1,"دائرة العمليات والصيانة - جنوب مكة","جنوب مكة"],[2,"دائرة العمليات والصيانة - شمال مكة","شمال مكة"],[3,"قسم العمليات والصيانة - الليث","الليث"],[4,"قسم العمليات والصيانة - خليص","خليص"]],
+  sec:[[1,"قسم المحطات"],[2,"قسم الشبكات"],[3,"قسم العمليات"],[6,"قسم المولدات"],[7,"قسم المؤقتات"]],
+  sch:[[1,"مجدول"],[2,"طارئ"]], nat:[[1,"أرضي"],[2,"هوائي"]],
+  cont:[[1,"منصور المساعد","ابعاد الرؤية","المعماريون",null],[3,"دلتا","سمير أبو غلية","سعود كونسلت",null],[4,"الهاجدية","ابعاد الرؤية","المعماريون","الصخرة المشرفة"]],
+  rk:["شمال مكة","جنوب مكة","الليث"], op:"العقد التشغيلي", jed:0,
+  st:{total:8090,done:7738,prog:231,ns:121,recent:[[10003067,"منجز"],[10003066,"جاري التنفيذ"],[10003065,""]]}
+};
 
-if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) $("hello").textContent = "مرحبًا " + tg.initDataUnsafe.user.first_name;
+/* ===== تعبئة القوائم ===== */
+const opts = (el, arr, sel) => { el.innerHTML = arr.map(([v,t])=>`<option value="${v}">${t}</option>`).join(""); if(sel!=null) el.value = sel; };
+function seg(id, arr, sel){
+  const el = $(id);
+  el.innerHTML = arr.map(([v,t])=>`<button type="button" data-v="${v}">${t}</button>`).join("");
+  const bs = [...el.querySelectorAll("button")];
+  const pick = b => { bs.forEach(x=>x.classList.toggle("on", x===b)); el.dataset.v = b.dataset.v; };
+  bs.forEach(b => b.onclick = () => { pick(b); onChange(); tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged(); });
+  pick(bs.find(b=>String(b.dataset.v)===String(sel)) || bs.find(b=>b.textContent==="طارئ") || bs[0]);
+}
+const ctrName = () => (D.ctr.find(c=>String(c[0])===$("ctr").dataset.v)||[])[1];
+const regions = [...new Set(D.cir.map(c=>c[2]))];
 
-/* التبويبات */
+seg("ctr", D.ctr, P.ctr);
+opts($("region"), regions.map(r=>[r,r]), P.region);
+opts($("sec"), D.sec, P.sec);
+seg("sch", D.sch, P.sch);
+seg("nat", D.nat, P.nat);
+
+function fillCircles(sel){
+  const r = $("region").value;
+  opts($("cir"), D.cir.filter(c=>c[2]===r).map(c=>[c[0],c[1]]), sel);
+}
+/* نفس منطق main.py (خطوة 4118): التشغيلي أو جدة = بدون استشاري، والموحد حسب المنطقة */
+function consFor(c){
+  const region = $("region").value;
+  if (ctrName() === D.op || D.jed) return "بدون استشاري";
+  if (region === D.rk[0]) return c[3];
+  if (region === D.rk[1]) return c[2];
+  if (region === D.rk[2]) return c[4];
+  return "";
+}
+function fillContractors(sel){
+  const cur = sel != null ? sel : $("cont").value;
+  opts($("cont"), D.cont.map(c=>[c[0], c[1]]), cur);
+  if (!$("cont").value && D.cont.length) $("cont").value = D.cont[0][0];
+  syncCons();
+}
+function syncCons(){
+  const c = D.cont.find(x=>String(x[0])===$("cont").value);
+  $("cons").textContent = (c && consFor(c)) || "—";
+}
+function onChange(){ syncCons(); }
+$("region").onchange = () => { fillCircles(); syncCons(); };
+$("cont").onchange = syncCons;
+fillCircles(P.cir); fillContractors(P.cont);
+["task","sap","notif","feeder","sub","phone","desc","maps"].forEach(k => { if (P[k]) $(k).value = P[k]; });
+
+if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) $("hello").textContent = "مرحبًا " + tg.initDataUnsafe.user.first_name + (D.city ? " — " + D.city : "");
+else if (D.city) $("hello").textContent = D.city;
+
+/* ===== التبويبات ===== */
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
   document.querySelectorAll("section").forEach(s=>s.classList.toggle("show", s.id===t.dataset.t));
   setMain(t.dataset.t === "new");
 });
 
-/* التحقق حسب قواعد السجل */
-function validate(){
-  let ok = true;
-  const task=$("task").value.trim(), sap=$("sap").value.trim(), desc=$("desc").value.trim();
-  $("e_task").textContent = /^\d{8}$/.test(task) ? "" : (ok=false, "لازم 8 أرقام");
-  $("e_sap").textContent  = (sap==="" || /^4\d{9}$/.test(sap)) ? "" : (ok=false, "10 أرقام تبدأ بـ 4");
-  $("e_desc").textContent = desc.length>=2 ? "" : (ok=false, "اكتب وصف البلاغ");
-  const maps=$("maps").value.trim();
-  $("e_maps").textContent = !maps ? (ok=false, "الصق رابط الموقع من Google Maps")
-                          : isMapsLink(maps) ? "" : (ok=false, "الرابط لازم يكون من Google Maps");
-  return ok;
-}
-
-/* يقبل روابط قوقل ماب فقط: maps.app.goo.gl / goo.gl/maps / google.com/maps / maps.google.com */
+/* ===== التحقق (نفس قواعد البوت) ===== */
 function isMapsLink(v){
   let u; try{ u=new URL(v); }catch(e){ return false; }
   if(u.protocol!=="https:" && u.protocol!=="http:") return false;
@@ -184,50 +220,56 @@ function isMapsLink(v){
   return h==="maps.app.goo.gl" || (h==="goo.gl" && u.pathname.startsWith("/maps"))
       || h==="maps.google.com" || (/^google\.[a-z.]+$/.test(h) && u.pathname.startsWith("/maps"));
 }
-/* لو الرابط طويل نطلع منه الإحداثيات مباشرة، والرابط المختصر يفكّه البوت */
-function coordsFromLink(v){
-  const m = v.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || v.match(/[?&](?:q|query|ll)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/) || v.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
-  return m ? m[1]+","+m[2] : "";
+function validate(){
+  let ok = true;
+  const v = k => $(k).value.trim();
+  const set = (k, msg) => { $("e_"+k).textContent = msg || ""; if (msg) ok = false; };
+  set("task",  v("task")  && !/^\d{8}$/.test(v("task"))  ? "8 أرقام" : "");
+  set("sap",   v("sap")   && !/^4\d{9}$/.test(v("sap"))  ? "10 أرقام تبدأ بـ 4" : "");
+  set("notif", v("notif") && !/^\d{9}$/.test(v("notif")) ? "9 أرقام" : "");
+  if (!v("task") && !v("sap") && !v("notif")) set("task", "اكتب رقم المهمة أو الساب أو الإشعار");
+  set("phone", /^\d{10}$/.test(v("phone")) ? "" : "رقم جوال من 10 أرقام");
+  set("desc",  v("desc").length >= 2 ? "" : "اكتب وصف البلاغ");
+  set("maps",  !v("maps") ? "الصق رابط الموقع من Google Maps" : isMapsLink(v("maps")) ? "" : "الرابط لازم يكون من Google Maps");
+  return ok;
 }
+
 function submit(){
   if(!validate()){
     tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("error");
     const bad=[...document.querySelectorAll(".err")].find(e=>e.textContent);
     if(bad) bad.scrollIntoView({behavior:"smooth",block:"center"});
-    const msg="فيه خانة تحتاج تعديل: "+(bad?bad.textContent:"");
-    if(inTG && tg.showAlert) tg.showAlert(msg); return;
+    if(inTG && tg.showAlert) tg.showAlert("فيه خانة تحتاج تعديل: "+(bad?bad.textContent:""));
+    return;
   }
+  const v = k => $(k).value.trim();
   const data = {
-    action:"new_emergency",
-    dept:$("dept").value, region:$("region").value, section:$("section").value, type:$("type").value,
-    task:$("task").value.trim(), sap:$("sap").value.trim(), feeder:$("feeder").value.trim(),
-    contractor:$("contractor").value, cms:$("cms").value,
-    maps:$("maps").value.trim(), coords:coordsFromLink($("maps").value.trim()),
-    sched:segVal("sched"), nature:segVal("nature"), desc:$("desc").value.trim()
+    action:"new_emergency", v:2,
+    ctr:+$("ctr").dataset.v, region:v("region"), cir:+v("cir"), sec:+v("sec"),
+    task:v("task"), sap:v("sap"), notif:v("notif"), feeder:v("feeder"), sub:v("sub"),
+    cont:+v("cont"), phone:v("phone"),
+    sch:+$("sch").dataset.v, nat:+$("nat").dataset.v,
+    desc:v("desc"), maps:v("maps")
   };
   if (inTG) tg.sendData(JSON.stringify(data));     // يقفل الصفحة ويرسل للبوت
   else { console.log(data); alert("وضع المعاينة (برا تيليجرام):\n" + JSON.stringify(data,null,1)); }
 }
-
-/* زر تيليجرام الرئيسي أسفل الشاشة، أو زر بديل برا تيليجرام */
 function setMain(show){
-  if (inTG){
-    tg.MainButton.setParams({text:"إرسال البلاغ"});
-    show ? tg.MainButton.show() : tg.MainButton.hide();
-  } else $("fallbackBtn").style.display = show ? "block" : "none";
+  if (inTG){ tg.MainButton.setParams({text:"إرسال البلاغ"}); show ? tg.MainButton.show() : tg.MainButton.hide(); }
+  else $("fallbackBtn").style.display = show ? "block" : "none";
 }
 if (inTG) tg.MainButton.onClick(submit); else $("fallbackBtn").onclick = submit;
 setMain(true);
 
-/* الإحصائيات: البوت يمررها في الرابط ?total=..&done=..&prog=..&ns=..  (بدون سيرفر) */
-const q = new URLSearchParams(location.search);
-const S = {total:+q.get("total")||8090, done:+q.get("done")||7738, prog:+q.get("prog")||231, ns:+q.get("ns")||121};
-$("s_total").textContent=S.total.toLocaleString("en-US"); $("s_done").textContent=S.done.toLocaleString("en-US");
-$("s_prog").textContent=S.prog.toLocaleString("en-US"); $("s_ns").textContent=S.ns.toLocaleString("en-US");
-$("s_bar").style.width = (S.done/S.total*100).toFixed(1)+"%";
-$("s_src").textContent = q.get("total") ? "من البوت مباشرة" : "أرقام توضيحية (إجمالي ومنجز مكة 5 نوفمبر، الباقي مثال)";
-const recent = [["10003067","منجز","var(--ok)"],["10003066","جاري التنفيذ","var(--warn)"],["10003065","لم يتم البدء","var(--bad)"],["10003064","منجز","var(--ok)"]];
-$("recent").innerHTML = recent.map(r=>`<div class="item"><span>#${r[0]}</span><span class="pill" style="background:${r[2]}">${r[1]}</span></div>`).join("");
+/* ===== الإحصائيات (من البوت) ===== */
+const S = D.st || {total:0,done:0,prog:0,ns:0,recent:[]};
+const fmt = n => Number(n||0).toLocaleString("en-US");
+$("s_total").textContent=fmt(S.total); $("s_done").textContent=fmt(S.done);
+$("s_prog").textContent=fmt(S.prog); $("s_ns").textContent=fmt(S.ns);
+$("s_bar").style.width = (S.total ? S.done/S.total*100 : 0).toFixed(1)+"%";
+$("s_src").textContent = DEMO ? "أرقام توضيحية (الصفحة مفتوحة بدون البوت)" : "من سجل " + (D.city||"البوت") + " وقت فتح النموذج";
+const color = s => s==="منجز" ? "var(--ok)" : s==="جاري التنفيذ" ? "var(--warn)" : s==="لم يتم البدء" ? "var(--bad)" : "var(--hint)";
+$("recent").innerHTML = (S.recent||[]).map(r=>`<div class="item"><span>#${r[0]}</span><span class="pill" style="background:${color(r[1])}">${r[1]||"بدون حالة"}</span></div>`).join("");
 </script>
 </body>
 </html>
