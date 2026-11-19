@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>حاسبة بيان التنفيذ</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg: var(--tg-theme-bg-color, #ffffff);
+    --text: var(--tg-theme-text-color, #1b1b1b);
+    --hint: var(--tg-theme-hint-color, #8a8f98);
+    --btn: var(--tg-theme-button-color, #2a7bd4);
+    --btn-text: var(--tg-theme-button-text-color, #ffffff);
+    --sec-bg: var(--tg-theme-secondary-bg-color, #f1f3f6);
+    --ok:#2e9d5b; --warn:#e0912b; --bad:#d64545;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--sec-bg);color:var(--text);font-family:-apple-system,"Segoe UI",Tahoma,sans-serif;font-size:15px}
+  header{padding:14px 16px 6px}
+  header h1{margin:0;font-size:18px}
+  main{padding:4px 16px 100px}
+  .card{background:var(--bg);border-radius:12px;padding:12px;margin-bottom:10px}
+  .info{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:13px}
+  .info span{color:var(--hint)}
+  h3{font-size:14px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
+  h3 small{color:var(--hint);font-weight:400}
+  input{width:100%;padding:10px;border:1px solid rgba(128,128,128,.25);border-radius:9px;background:var(--sec-bg);color:var(--text);font-size:15px;font-family:inherit}
+  .res{max-height:300px;overflow:auto;margin-top:6px}
+  .r{display:flex;gap:8px;align-items:center;padding:9px 2px;border-bottom:1px solid rgba(128,128,128,.15)}
+  .r:last-child{border:0}
+  .r .t{flex:1;min-width:0}
+  .r .t b{font-size:13px}
+  .r .t div{font-size:13px;line-height:1.4}
+  .r .t small{color:var(--hint);font-size:12px}
+  .add{border:0;border-radius:8px;background:var(--btn);color:var(--btn-text);padding:7px 12px;font-size:14px;white-space:nowrap}
+  .add[disabled]{opacity:.4}
+  .it{border-bottom:1px solid rgba(128,128,128,.15);padding:10px 0}
+  .it:last-child{border:0}
+  .it .top{display:flex;gap:8px;align-items:flex-start}
+  .it .top div{flex:1;font-size:13px;line-height:1.4}
+  .del{border:0;background:none;color:var(--bad);font-size:18px;padding:0 4px}
+  .q{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .q input{width:110px;text-align:center;direction:ltr}
+  .q .sum{flex:1;text-align:left;font-size:13px;color:var(--hint)}
+  .q .sum b{color:var(--text)}
+  .tot{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .tot div{background:var(--sec-bg);border-radius:10px;padding:10px;text-align:center}
+  .tot span{display:block;color:var(--hint);font-size:12px}
+  .tot b{font-size:17px}
+  .hint{color:var(--hint);font-size:12px}
+  .warn{background:#fff4e0;color:#8a5a00;border-radius:10px;padding:10px;font-size:13px;margin-bottom:10px;display:none}
+  .empty{color:var(--hint);font-size:13px;text-align:center;padding:10px}
+  #fallbackBtn{display:none;position:fixed;bottom:0;left:0;right:0;margin:12px 16px;padding:13px;border:0;border-radius:12px;background:var(--btn);color:var(--btn-text);font-size:16px;font-weight:700}
+</style>
+</head>
+<body>
+<header><h1>🧾 حاسبة بيان التنفيذ</h1></header>
+<main>
+  <div class="warn" id="warn"></div>
+  <div class="card info" id="info"></div>
+
+  <div class="card">
+    <h3>🔎 البحث عن بند <small id="loadState">جاري تحميل البنود…</small></h3>
+    <input id="search" placeholder="رقم البند أو جزء من الوصف" autocomplete="off">
+    <div class="res" id="results"></div>
+  </div>
+
+  <div class="card">
+    <h3>📋 البنود المختارة <small id="count">0 / 8</small></h3>
+    <div id="items"><div class="empty">ابحث عن بند وأضفه من فوق</div></div>
+  </div>
+
+  <div class="card">
+    <h3>💰 المجموع</h3>
+    <div class="tot">
+      <div><span>المقاول</span><b id="t_cont">0</b></div>
+      <div><span>الاستشاري</span><b id="t_cons">0</b></div>
+      <div><span>PDC</span><b id="t_pdc">0</b></div>
+    </div>
+    <p class="hint" style="margin:8px 0 0">المجموع هنا للمراجعة. الأرقام النهائية يحسبها البوت ويطلعها في ملف PDF.</p>
+  </div>
+</main>
+<button id="fallbackBtn">إصدار بيان التنفيذ</button>
+
+<script>
+const tg = window.Telegram ? Telegram.WebApp : null;
+const inTG = !!(tg && tg.platform && tg.platform !== "unknown");
+if (tg){ tg.ready(); tg.expand(); }
+const $ = id => document.getElementById(id);
+const esc = t => String(t==null?"":t).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const money = n => Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+function b64json(s){
+  s = s.replace(/-/g,"+").replace(/_/g,"/"); while (s.length % 4) s += "=";
+  const bin = atob(s), bytes = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+const q = new URLSearchParams(location.search);
+let D = null; try { if (q.get("d")) D = b64json(q.get("d")); } catch(e){}
+const DEMO = !D;
+if (DEMO) D = {row:0, ref:"مثال", cont:"—", cons:"—", region:"—", task:"—", sap:"", max:8, pdc:0.12};
+const MAX = D.max || 8, PDC = D.pdc || 0.12;
+
+$("info").innerHTML = [["الرقم المرجعي",D.ref],["المنطقة",D.region],["المقاول",D.cont],["الاستشاري",D.cons],["رقم المهمة",D.task||"—"],["رقم الساب",D.sap||"—"]]
+  .map(([k,v])=>`<div><span>${k}:</span> <b>${esc(v)}</b></div>`).join("");
+
+/* ===== فك تشفير قائمة البنود: SHA-256(key + nonce + counter) XOR (نفس main.py) ===== */
+const hex2b = h => new Uint8Array(h.match(/../g).map(x=>parseInt(x,16)));
+async function decrypt(buf, key){
+  const nonce = buf.slice(0,16), data = buf.slice(16), out = new Uint8Array(data.length);
+  const blocks = Math.ceil(data.length/32), CH = 256;
+  for (let s=0; s<blocks; s+=CH){
+    const jobs = [];
+    for (let b=s; b<Math.min(blocks,s+CH); b++){
+      const m = new Uint8Array(key.length+16+8); m.set(key,0); m.set(nonce,key.length);
+      new DataView(m.buffer).setBigUint64(key.length+16, BigInt(b));
+      jobs.push(crypto.subtle.digest("SHA-256", m).then(ks=>{
+        ks = new Uint8Array(ks); const o=b*32;
+        for (let i=0;i<32 && o+i<data.length;i++) out[o+i] = data[o+i]^ks[i];
+      }));
+    }
+    await Promise.all(jobs);
+  }
+  return out;
+}
+const DEMO_ITEMS = [[2,"201010101","الاشراف على تركيب عمود حديدي <= 10م في تربة عادية/رملية","EA",95.22,1320],[3,"201010102","الاشراف على تركيب عمود حديدي <= 10 م في تربة صخرية","EA",119.52,1637],[4,"201020101","حفر وردم خندق كابل جهد منخفض","M",8.5,62]];
+let ITEMS = [];
+async function load(){
+  if (DEMO){ ITEMS = DEMO_ITEMS; $("loadState").textContent = "بنود توضيحية"; restore(); return; }
+  try{
+    const res = await fetch(D.f + "?v=" + encodeURIComponent(D.v), {cache:"no-store"});
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const raw = await decrypt(new Uint8Array(await res.arrayBuffer()), hex2b(D.k));
+    const h = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", raw))).map(x=>x.toString(16).padStart(2,"0")).join("").slice(0,12);
+    if (h !== D.v){ showWarn("⚠️ قائمة البنود في الصفحة مو آخر نسخة. كمّل عادي، والبوت بيتأكد من البنود، وبلّغ PDC يحدّثون الملف."); }
+    ITEMS = JSON.parse(new TextDecoder().decode(raw));
+    $("loadState").textContent = ITEMS.length + " بند";
+  }catch(e){
+    console.log(e); $("loadState").textContent = "تعذّر التحميل";
+    showWarn("❌ ما قدرت أحمّل قائمة البنود. سكّر الحاسبة وافتحها مرة ثانية، وإذا تكرر بلّغ PDC.");
+  }
+  restore();
+}
+function showWarn(t){ $("warn").textContent = t; $("warn").style.display = "block"; }
+
+/* ===== البحث ===== */
+const norm = s => String(s||"").replace(/[ً-ْـ]/g,"").replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/ى/g,"ي").toLowerCase();
+function search(){
+  const t = norm($("search").value.trim());
+  if (!t){ $("results").innerHTML = ""; return; }
+  const words = t.split(/\s+/);
+  const hits = ITEMS.filter(it => it[1].startsWith(t) || words.every(w => norm(it[2]).includes(w))).slice(0, 30);
+  $("results").innerHTML = hits.length ? hits.map(it => `
+    <div class="r"><div class="t"><b>${esc(it[1])}</b><div>${esc(it[2])}</div><small>${esc(it[3])} · المقاول ${money(it[5])} · الاستشاري ${money(it[4])}</small></div>
+    <button class="add" data-r="${it[0]}" ${SEL.some(s=>s.r===it[0])||SEL.length>=MAX?"disabled":""}>${SEL.some(s=>s.r===it[0])?"مضاف":"إضافة"}</button></div>`).join("")
+    : '<div class="empty">ما لقيت بند بهذا الرقم أو الوصف</div>';
+  $("results").querySelectorAll(".add").forEach(b => b.onclick = () => add(+b.dataset.r));
+}
+$("search").oninput = search;
+
+/* ===== البنود المختارة ===== */
+let SEL = [];   // {r, no, desc, unit, cons, cont, qty}
+function add(r){
+  if (SEL.length >= MAX || SEL.some(s=>s.r===r)) return;
+  const it = ITEMS.find(x=>x[0]===r); if (!it) return;
+  SEL.push({r:it[0], no:it[1], desc:it[2], unit:it[3], cons:it[4], cont:it[5], qty:""});
+  tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred("light");
+  render(); search();
+  const inputs = $("items").querySelectorAll("input"); inputs[inputs.length-1].focus();
+}
+function render(){
+  $("count").textContent = SEL.length + " / " + MAX;
+  $("items").innerHTML = SEL.length ? SEL.map((s,i)=>`
+    <div class="it"><div class="top"><div><b>${esc(s.no)}</b> · ${esc(s.desc)}<br><span class="hint">${esc(s.unit)} · المقاول ${money(s.cont)} للوحدة</span></div>
+      <button class="del" data-i="${i}" title="حذف">✕</button></div>
+      <div class="q"><input inputmode="decimal" placeholder="الكمية" data-i="${i}" value="${esc(s.qty)}"><div class="sum" id="sum${i}"></div></div></div>`).join("")
+    : '<div class="empty">ابحث عن بند وأضفه من فوق</div>';
+  $("items").querySelectorAll(".del").forEach(b => b.onclick = () => { SEL.splice(+b.dataset.i,1); render(); search(); });
+  $("items").querySelectorAll("input").forEach(inp => inp.oninput = () => { SEL[+inp.dataset.i].qty = inp.value.replace(",", ".").trim(); totals(); });
+  totals();
+}
+const qtyOf = s => { const v = parseFloat(s.qty); return isFinite(v) && v > 0 ? v : 0; };
+const r2 = n => Math.round(n*100)/100;
+function totals(){
+  let a=0,b=0,c=0;
+  SEL.forEach((s,i)=>{
+    const qn = qtyOf(s), v2=r2(s.cont*qn), v3=r2(s.cons*qn), v4=r2(s.cont*PDC*qn);
+    a+=v2; b+=v3; c+=v4;
+    const el = $("sum"+i); if (el) el.innerHTML = qn ? `المقاول <b>${money(v2)}</b>` : '<span style="color:var(--bad)">اكتب الكمية</span>';
+  });
+  $("t_cont").textContent = money(a); $("t_cons").textContent = money(b); $("t_pdc").textContent = money(c);
+}
+function restore(){   // بعد خطأ: البوت يرجّع البنود في d.p
+  (D.p||[]).forEach(p => { const it = ITEMS.find(x=>x[0]===+p[0]); if (it && SEL.length < MAX && !SEL.some(s=>s.r===it[0])) SEL.push({r:it[0],no:it[1],desc:it[2],unit:it[3],cons:it[4],cont:it[5],qty:String(p[2]??"")}); });
+  render();
+}
+
+/* ===== الإرسال ===== */
+function alertMsg(m){ inTG && tg.showAlert ? tg.showAlert(m) : alert(m); }
+function submit(){
+  if (!SEL.length) return alertMsg("أضف بند واحد على الأقل");
+  const bad = SEL.findIndex(s => !qtyOf(s));
+  if (bad >= 0){ $("items").querySelectorAll("input")[bad].focus(); return alertMsg("اكتب كمية أكبر من صفر للبند " + SEL[bad].no); }
+  const data = {action:"calc", row:D.row, ref:D.ref, items: SEL.map(s=>[s.r, s.no, qtyOf(s)])};
+  if (inTG) tg.sendData(JSON.stringify(data));
+  else { console.log(data); alert("وضع المعاينة (برا تيليجرام):\n" + JSON.stringify(data)); }
+}
+if (inTG){ tg.MainButton.setParams({text:"إصدار بيان التنفيذ"}); tg.MainButton.onClick(submit); tg.MainButton.show(); }
+else { $("fallbackBtn").style.display = "block"; $("fallbackBtn").onclick = submit; }
+render(); load();
+</script>
+</body>
+</html>
